@@ -75,40 +75,40 @@ if ($res) {
     $OuCompany   = Add-ADOrganizationalUnit $CompanyName $ORGRootPath
     $OuGROUPS    = Add-ADOrganizationalUnit "GROUPS" $OuCompany
     $OuACL       = Add-ADOrganizationalUnit "ACL" $OuGROUPS
-                   Add-ADOrganizationalUnit  "DISABLED" $OuACL
-    $OuAPP       = Add-ADOrganizationalUnit  "APP"  $OuGROUPS
-                   Add-ADOrganizationalUnit  "DISABLED"  $OuAPP
-    $OuDST       = Add-ADOrganizationalUnit  "DST"  $OuGROUPS
-                   Add-ADOrganizationalUnit  "DISABLED"  $OuDST
-    $OuSHD       = Add-ADOrganizationalUnit  "SHD"  $OuGROUPS
-                   Add-ADOrganizationalUnit  "DISABLED"  $OuSHD
-    $OuDEVICES   = Add-ADOrganizationalUnit  "DEVICES"  $OuCompany
-    $OuDC        = Add-ADOrganizationalUnit  "DC"  $OuDEVICES
+                   Add-ADOrganizationalUnit "DISABLED" $OuACL
+    $OuAPP       = Add-ADOrganizationalUnit "APP"  $OuGROUPS
+                   Add-ADOrganizationalUnit "DISABLED"  $OuAPP
+    $OuDST       = Add-ADOrganizationalUnit "DST"  $OuGROUPS
+                   Add-ADOrganizationalUnit "DISABLED"  $OuDST
+    $OuSHD       = Add-ADOrganizationalUnit "SHD"  $OuGROUPS
+                   Add-ADOrganizationalUnit "DISABLED"  $OuSHD
+    $OuDEVICES   = Add-ADOrganizationalUnit "DEVICES"  $OuCompany
+    $OuDC        = Add-ADOrganizationalUnit "DC"  $OuDEVICES
     ForEach ($Item in $Locations)
     {
-        $OuLoc  = Add-ADOrganizationalUnit  $Item  $OuDC
-                  Add-ADOrganizationalUnit  "DISABLED"  $OuLoc
+        $OuLoc  = Add-ADOrganizationalUnit $Item  $OuDC
+                  Add-ADOrganizationalUnit "DISABLED"  $OuLoc
     }
-    $OuSERVERS = Add-ADOrganizationalUnit  "SERVERS"  $OuDEVICES
+    $OuSERVERS = Add-ADOrganizationalUnit "SERVERS"  $OuDEVICES
     ForEach ($Item in $Locations)
     {
-        $OuLoc = Add-ADOrganizationalUnit  $Item  $OuSERVERS
-                 Add-ADOrganizationalUnit  "DISABLED"  $OuLoc
+        $OuLoc = Add-ADOrganizationalUnit $Item  $OuSERVERS
+                 Add-ADOrganizationalUnit "DISABLED"  $OuLoc
     }
-    $OuWORKSTATIONS = Add-ADOrganizationalUnit  "WORKSTATIONS"  $OuDEVICES
+    $OuWORKSTATIONS = Add-ADOrganizationalUnit "WORKSTATIONS"  $OuDEVICES
     ForEach ($Item in $Locations)
     {
-        $OuLoc = Add-ADOrganizationalUnit  $Item  $OuWORKSTATIONS
-                 Add-ADOrganizationalUnit  "DISABLED"  $OuLoc
+        $OuLoc = Add-ADOrganizationalUnit $Item  $OuWORKSTATIONS
+                 Add-ADOrganizationalUnit "DISABLED"  $OuLoc
     }
-    $OuDEPARTMENTS = Add-ADOrganizationalUnit  "DEPARTMENTS" $OuCompany
+    $OuDEPARTMENTS = Add-ADOrganizationalUnit "DEPARTMENTS" $OuCompany
     ForEach ($Item in $Departments)
     {
-        $OuDEPS = Add-ADOrganizationalUnit  $Item $OuDEPARTMENTS
+        $OuDEPS = Add-ADOrganizationalUnit $Item $OuDEPARTMENTS
         ForEach ($Item1 in $Locations)
         {
-                $OuLoc = Add-ADOrganizationalUnit  $Item1  $OuDEPS
-                         Add-ADOrganizationalUnit  "DISABLED"  $OuLoc
+                $OuLoc = Add-ADOrganizationalUnit $Item1  $OuDEPS
+                         Add-ADOrganizationalUnit "DISABLED"  $OuLoc
         }
     }
 }
