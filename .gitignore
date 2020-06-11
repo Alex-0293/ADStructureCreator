@@ -3,3 +3,4 @@ ACL/Owner.csv
 ACL/Roles.csv
 SETTINGS/Settings.ps1
 LOGS/Errors.log
+LOGS/ADStructureCreator.log

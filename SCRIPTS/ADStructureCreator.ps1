@@ -60,7 +60,7 @@ Function Add-ADOrganizationalUnit {
     $Ou = Get-ADOrganizationalUnit -Filter 'name -eq $OuName' -SearchBase $ParentPath
     if ( $null-eq $Ou ) {
         New-ADOrganizationalUnit -name $OuName -Path $ParentPath
-        $Ou = Get-ADOrganizationalUnit -Filter "name -eq $OuName" -SearchBase $ParentPath       
+        $Ou = Get-ADOrganizationalUnit -Filter 'name -eq $OuName' -SearchBase $ParentPath       
     }
     Else {        
         Add-ToLog -Message "Organization unit [$OuName] already exist in [$ParentPath]" -logFilePath $ScriptLogFilePath -Display -status "info" 
@@ -113,5 +113,43 @@ if ($res) {
     }
 }
 
+$ImportUsers = Import-Csv -Path $Global:UserCSVFilePath -Delimiter ";" 
+
+foreach ($User in $ImportUsers) {
+    
+    if ($User.Enabled -eq "True"){
+        $Enabled = $true
+    }
+    Else {
+        $Enabled = $false
+    }
+    if ($User.ChangePasswordAtLogon -eq "True"){
+        $ChangePasswordAtLogon = $true
+    }
+    Else {
+        $ChangePasswordAtLogon = $false
+    }
+    if ($User.Department) {
+        $Department = $User.Department
+        $UserPath   = (Get-ADOrganizationalUnit -Filter 'name -eq $Department' -SearchBase $ORGRootPath).DistinguishedName
+    }
+
+    if ($UserPath) {
+        New-ADUser `
+            -Name                  $User.Name`
+            -GivenName             $User.GivenName `
+            -Surname               $User.Surname `
+            -Department            $User.Department `
+            -State                 $User.State `
+            -EmployeeID            $User.EmployeeID `
+            -DisplayName           $User.DisplayName `
+            -SamAccountName        $User.SamAccountName `
+            -AccountPassword       $(ConvertTo-SecureString $User.AccountPassword -AsPlainText -Force) `
+            -Enabled               $Enabled `
+            -ChangePasswordAtLogon $ChangePasswordAtLogon `
+            -Path                  $UserPath
+    }
+
+}
 ################################# Script end here ###################################
 . "$GlobalSettings\$SCRIPTSFolder\Finish.ps1"
