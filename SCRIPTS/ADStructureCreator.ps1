@@ -151,8 +151,9 @@ Function New-User {
     $Global:EmployeeNumber ++
     Return $User
 }
-
+$Global:ParentLevel ++
 if ($Global:GenerateUsers) {
+    
     Add-ToLog -Message "Generating users." -logFilePath $ScriptLogFilePath -Display -status "info" 
     $Global:Surname1 = $Global:Surname
     [int] $Global:EmployeeNumber = 1
@@ -169,7 +170,7 @@ if ($Global:GenerateUsers) {
 $res = Import-Module ActiveDirectory -PassThru -Force
 if ($res) {  
     
-    $ORGRootPath = (Get-ADDomain).DistinguishedName
+    $ORGRootPath = (Get-ADDomain).DistinguishedName    
     Add-ToLog -Message "Generating organization units in [$ORGRootPath]." -logFilePath $ScriptLogFilePath -Display -status "info"               
     $Global:ParentLevel ++
     $OuCompany   = Add-ADOrganizationalUnit $CompanyName $ORGRootPath
@@ -274,6 +275,6 @@ foreach ($User in $Users) {
 }
 $Global:ParentLevel --
 Add-ToLog -Message "Added users in AD." -logFilePath $ScriptLogFilePath -Display -status "info"               
-
+$Global:ParentLevel --
 ################################# Script end here ###################################
 . "$GlobalSettings\$SCRIPTSFolder\Finish.ps1"
