@@ -68,9 +68,98 @@ Function Add-ADOrganizationalUnit {
     return $Ou.DistinguishedName
 }
 
+Function New-User {
+    
+    $Sex = "Male", "Female" | Get-Random
 
+    if ($Sex -eq "Male") {
+        $GivenName = $Global:MaleNames |  Get-Random
+        if ($Global:UniqueNames) {
+            $Global:MaleNames = $Global:MaleNames | Where-Object {$_ -ne $GivenName}
+        }
+    }
+    Else {
+        $GivenName = $Global:FemaleNames | Get-Random
+        if ($Global:UniqueNames) {
+            $Global:FemaleNames = $Global:FemaleNames | Where-Object { $_ -ne $GivenName}
+        }
+    }
+    
+    $Surname        = $Global:Surname1 | Get-Random
+    if ($Global:UniqueNames) {
+        $Global:Surname1 = $Global:Surname1 | Where-Object { $_ -ne $Surname }
+    }
+
+    $Name                              = "$GivenName $Surname"
+    if ($Global:DepartmentsWithLimits) {
+        $Global:Limits = @()
+        foreach ($Item in $Global:DepartmentsWithLimits.keys){
+            $Departments = [PSCustomObject]@{
+                Name    = $Item
+                Percent = $Global:DepartmentsWithLimits.$Item
+                Max     = [math]::Round($Global:UsersCount / 100 * $Global:DepartmentsWithLimits.$Item, 0)
+                Count   = ($Global:users | Where-Object { $_.Department -eq $Item}).count
+            }
+            $Global:Limits += $Departments
+        }
+        
+        do {
+            $Department      = $Global:Departments | Get-Random
+            $DepartmentLimit = $Global:Limits | Where-Object { $_.Name -eq $Department }
+        } until ($DepartmentLimit.Count -lt $DepartmentLimit.Max)
+        $DepartmentLimit.Count ++    
+    }
+    Else {
+        $Department                       = $Global:Departments | Get-Random 
+    }    
+    $Initials                          = ($Global:Surname | Get-Random ).SubString(0,1)
+    $DisplayName                       = "$GivenName $Initials. $Surname"
+    $SamAccountName                    = "$GivenName.$Surname"
+    $UserPassword                      = ConvertTo-SecureString $Global:DefaultUserPassword -AsPlainText -Force
+    $Enabled                           = $true
+    $ChangePasswordAtLogon             = $false
+    $Company                           = $Global:CompanyName
+    $AllowReversiblePasswordEncryption = $False
+    $Office                            = $Global:OfficeLocations | Get-Random
+    $OfficePhone                       = (1..3 | ForEach-Object {"1", "2", "3", "4", "5", "6", "7", "8", "9", "0" | Get-Random}) -join ""
+    $MobilePhone                       = "+$(Get-Random -Maximum 99) ($((1..3 | ForEach-Object { "1", "2", "3", "4", "5", "6", "7", "8", "9", "0" | Get-Random }) -join '')) $((1..7 | ForEach-Object { "1", "2", "3", "4", "5", "6", "7", "8", "9", "0" | Get-Random }) -join '')"
+    
+    $User = [PSCustomObject]@{
+        Sex                               = $Sex
+        Name                              = $Name
+        GivenName                         = $GivenName
+        Surname                           = $Surname
+        Department                        = $Department
+        EmployeeID                        = $Global:EmployeeNumber
+        DisplayName                       = $DisplayName
+        SamAccountName                    = $SamAccountName
+        AccountPassword                   = $UserPassword
+        Enabled                           = $Enabled
+        ChangePasswordAtLogon             = $ChangePasswordAtLogon
+        Company                           = $Company
+        AllowReversiblePasswordEncryption = $AllowReversiblePasswordEncryption
+        Initials                          = $Initials
+        Office                            = $Office
+        OfficePhone                       = $OfficePhone
+        MobilePhone                       = $MobilePhone
+    }
+    $Global:EmployeeNumber ++
+    Return $User
+}
+
+$Global:Surname1 = $Global:Surname
+[int] $Global:EmployeeNumber = 1
+$Global:users = @()
+#$Users = Import-Csv -Path $Global:UserCSVFilePath -Delimiter ";" 
+for ($i = 1; $i -le $Global:UsersCount; $i++) {
+    $Global:users += New-User
+}
+$users | Select-Object EmployeeID, Sex, DisplayName, Department, SamAccountName, Company, Office, OfficePhone, MobilePhone  | Format-Table -AutoSize -RepeatHeader -Wrap
+$Global:Limits | Format-Table -AutoSize
 $res = Import-Module ActiveDirectory -PassThru -Force
 if ($res) {
+    
+
     $ORGRootPath = (Get-ADDomain).DistinguishedName
     $OuCompany   = Add-ADOrganizationalUnit $CompanyName $ORGRootPath
     $OuGROUPS    = Add-ADOrganizationalUnit "GROUPS" $OuCompany
@@ -113,9 +202,14 @@ if ($res) {
     }
 }
 
-$ImportUsers = Import-Csv -Path $Global:UserCSVFilePath -Delimiter ";" 
 
-foreach ($User in $ImportUsers) {
+$users = @()
+#$Users = Import-Csv -Path $Global:UserCSVFilePath -Delimiter ";" 
+for ($i = 1; $i -le $Global:UsersCount; $i++) {
+    $users += New-User
+}
+
+foreach ($User in $Users) {
     
     if ($User.Enabled -eq "True"){
         $Enabled = $true
