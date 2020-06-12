@@ -59,15 +59,15 @@ Function Add-ADOrganizationalUnit {
     
     $Ou = Get-ADOrganizationalUnit -Filter 'name -eq $OuName' -SearchBase $ParentPath
     if ( $null-eq $Ou ) {
+        Add-ToLog -Message "Adding organization unit [$OuName] in [$ParentPath]." -logFilePath $ScriptLogFilePath -Display -status "info" 
         New-ADOrganizationalUnit -name $OuName -Path $ParentPath
         $Ou = Get-ADOrganizationalUnit -Filter 'name -eq $OuName' -SearchBase $ParentPath       
     }
     Else {        
-        Add-ToLog -Message "Organization unit [$OuName] already exist in [$ParentPath]" -logFilePath $ScriptLogFilePath -Display -status "info" 
+        Add-ToLog -Message "Organization unit [$OuName] already exist in [$ParentPath]!" -logFilePath $ScriptLogFilePath -Display -status "error" 
     }
     return $Ou.DistinguishedName
 }
-
 Function New-User {
     
     $Sex = "Male", "Female" | Get-Random
@@ -85,12 +85,12 @@ Function New-User {
         }
     }
     
-    $Surname        = $Global:Surname1 | Get-Random
+    $Surname = $Global:Surname1 | Get-Random
     if ($Global:UniqueNames) {
         $Global:Surname1 = $Global:Surname1 | Where-Object { $_ -ne $Surname }
     }
 
-    $Name                              = "$GivenName $Surname"
+    
     if ($Global:DepartmentsWithLimits) {
         $Global:Limits = @()
         foreach ($Item in $Global:DepartmentsWithLimits.keys){
@@ -113,6 +113,7 @@ Function New-User {
         $Department                       = $Global:Departments | Get-Random 
     }    
     $Initials                          = ($Global:Surname | Get-Random ).SubString(0,1)
+    $Name                              = "$GivenName $Initials. $Surname"
     $DisplayName                       = "$GivenName $Initials. $Surname"
     $SamAccountName                    = "$GivenName.$Surname"
     $UserPassword                      = ConvertTo-SecureString $Global:DefaultUserPassword -AsPlainText -Force
@@ -120,10 +121,12 @@ Function New-User {
     $ChangePasswordAtLogon             = $false
     $Company                           = $Global:CompanyName
     $AllowReversiblePasswordEncryption = $False
-    $Office                            = $Global:OfficeLocations | Get-Random
+    $Division                          = $Global:OfficeLocations | Get-Random
     $OfficePhone                       = (1..3 | ForEach-Object {"1", "2", "3", "4", "5", "6", "7", "8", "9", "0" | Get-Random}) -join ""
     $MobilePhone                       = "+$(Get-Random -Maximum 99) ($((1..3 | ForEach-Object { "1", "2", "3", "4", "5", "6", "7", "8", "9", "0" | Get-Random }) -join '')) $((1..7 | ForEach-Object { "1", "2", "3", "4", "5", "6", "7", "8", "9", "0" | Get-Random }) -join '')"
-    
+    $Title                             =  $Global:Title | Get-Random
+    $Email                             = "$SamAccountName@$($Global:CompanyName).com"
+
     $User = [PSCustomObject]@{
         Sex                               = $Sex
         Name                              = $Name
@@ -139,78 +142,86 @@ Function New-User {
         Company                           = $Company
         AllowReversiblePasswordEncryption = $AllowReversiblePasswordEncryption
         Initials                          = $Initials
-        Office                            = $Office
+        Division                          = $Division
         OfficePhone                       = $OfficePhone
         MobilePhone                       = $MobilePhone
+        Title                             = $Title 
+        Email                             = $Email 
     }
     $Global:EmployeeNumber ++
     Return $User
 }
 
-$Global:Surname1 = $Global:Surname
-[int] $Global:EmployeeNumber = 1
-$Global:users = @()
-#$Users = Import-Csv -Path $Global:UserCSVFilePath -Delimiter ";" 
-for ($i = 1; $i -le $Global:UsersCount; $i++) {
-    $Global:users += New-User
-}
-$users | Select-Object EmployeeID, Sex, DisplayName, Department, SamAccountName, Company, Office, OfficePhone, MobilePhone  | Format-Table -AutoSize -RepeatHeader -Wrap
-$Global:Limits | Format-Table -AutoSize
-$res = Import-Module ActiveDirectory -PassThru -Force
-if ($res) {
-    
+if ($Global:GenerateUsers) {
+    Add-ToLog -Message "Generating users." -logFilePath $ScriptLogFilePath -Display -status "info" 
+    $Global:Surname1 = $Global:Surname
+    [int] $Global:EmployeeNumber = 1
+    $Global:users = @()
 
+    for ($i = 1; $i -le $Global:UsersCount; $i++) {
+        $Global:users += New-User
+    }
+    #$Global:users  | Select-Object EmployeeID, Sex, DisplayName, Department, SamAccountName, Company, Office, OfficePhone, MobilePhone  | Format-Table -AutoSize
+    #$Global:Limits | Format-Table -AutoSize
+    Add-ToLog -Message "Users generated." -logFilePath $ScriptLogFilePath -Display -status "info"
+}
+
+$res = Import-Module ActiveDirectory -PassThru -Force
+if ($res) {  
+    
     $ORGRootPath = (Get-ADDomain).DistinguishedName
+    Add-ToLog -Message "Generating organization units in [$ORGRootPath]." -logFilePath $ScriptLogFilePath -Display -status "info"               
+    $Global:ParentLevel ++
     $OuCompany   = Add-ADOrganizationalUnit $CompanyName $ORGRootPath
     $OuGROUPS    = Add-ADOrganizationalUnit "GROUPS" $OuCompany
     $OuACL       = Add-ADOrganizationalUnit "ACL" $OuGROUPS
-                   Add-ADOrganizationalUnit "DISABLED" $OuACL
+    $Ou          = Add-ADOrganizationalUnit "DISABLED" $OuACL 
     $OuAPP       = Add-ADOrganizationalUnit "APP"  $OuGROUPS
-                   Add-ADOrganizationalUnit "DISABLED"  $OuAPP
+    $Ou          = Add-ADOrganizationalUnit "DISABLED"  $OuAPP
     $OuDST       = Add-ADOrganizationalUnit "DST"  $OuGROUPS
-                   Add-ADOrganizationalUnit "DISABLED"  $OuDST
+    $Ou          = Add-ADOrganizationalUnit "DISABLED"  $OuDST
     $OuSHD       = Add-ADOrganizationalUnit "SHD"  $OuGROUPS
-                   Add-ADOrganizationalUnit "DISABLED"  $OuSHD
+    $Ou          = Add-ADOrganizationalUnit "DISABLED"  $OuSHD
     $OuDEVICES   = Add-ADOrganizationalUnit "DEVICES"  $OuCompany
     $OuDC        = Add-ADOrganizationalUnit "DC"  $OuDEVICES
-    ForEach ($Item in $Locations)
+    ForEach ($Item in $Global:OfficeLocations)
     {
         $OuLoc  = Add-ADOrganizationalUnit $Item  $OuDC
-                  Add-ADOrganizationalUnit "DISABLED"  $OuLoc
+        $Ou     = Add-ADOrganizationalUnit "DISABLED"  $OuLoc
     }
     $OuSERVERS = Add-ADOrganizationalUnit "SERVERS"  $OuDEVICES
-    ForEach ($Item in $Locations)
+    ForEach ($Item in $Global:OfficeLocations)
     {
         $OuLoc = Add-ADOrganizationalUnit $Item  $OuSERVERS
-                 Add-ADOrganizationalUnit "DISABLED"  $OuLoc
+        $Ou    = Add-ADOrganizationalUnit "DISABLED"  $OuLoc
     }
     $OuWORKSTATIONS = Add-ADOrganizationalUnit "WORKSTATIONS"  $OuDEVICES
-    ForEach ($Item in $Locations)
+    ForEach ($Item in $Global:OfficeLocations)
     {
         $OuLoc = Add-ADOrganizationalUnit $Item  $OuWORKSTATIONS
-                 Add-ADOrganizationalUnit "DISABLED"  $OuLoc
+        $Ou    = Add-ADOrganizationalUnit "DISABLED"  $OuLoc
     }
     $OuDEPARTMENTS = Add-ADOrganizationalUnit "DEPARTMENTS" $OuCompany
     ForEach ($Item in $Departments)
     {
         $OuDEPS = Add-ADOrganizationalUnit $Item $OuDEPARTMENTS
-        ForEach ($Item1 in $Locations)
+        ForEach ($Item1 in $Global:OfficeLocations)
         {
                 $OuLoc = Add-ADOrganizationalUnit $Item1  $OuDEPS
-                         Add-ADOrganizationalUnit "DISABLED"  $OuLoc
+                $Ou    = Add-ADOrganizationalUnit "DISABLED"  $OuLoc
         }
     }
+    $Global:ParentLevel --
+    Add-ToLog -Message "Generated organization units in [$ORGRootPath]." -logFilePath $ScriptLogFilePath -Display -status "info"               
 }
 
-
-$users = @()
-#$Users = Import-Csv -Path $Global:UserCSVFilePath -Delimiter ";" 
-for ($i = 1; $i -le $Global:UsersCount; $i++) {
-    $users += New-User
+if (-not $Global:GenerateUsers) {
+    $Users = Import-Csv -Path $Global:UserCSVFilePath -Delimiter ";" 
 }
 
-foreach ($User in $Users) {
-    
+Add-ToLog -Message "Adding users in AD." -logFilePath $ScriptLogFilePath -Display -status "info"               
+$Global:ParentLevel ++
+foreach ($User in $Users) {    
     if ($User.Enabled -eq "True"){
         $Enabled = $true
     }
@@ -224,26 +235,45 @@ foreach ($User in $Users) {
         $ChangePasswordAtLogon = $false
     }
     if ($User.Department) {
-        $Department = $User.Department
-        $UserPath   = (Get-ADOrganizationalUnit -Filter 'name -eq $Department' -SearchBase $ORGRootPath).DistinguishedName
+        $Department      = $User.Department
+        $Office          = $User.Division
+        $DepartmentsPath = (Get-ADOrganizationalUnit -Filter 'name -eq "DEPARTMENTS"' -SearchBase $ORGRootPath).DistinguishedName
+        $DepartmentPath  = (Get-ADOrganizationalUnit -Filter 'name -eq $Department' -SearchBase $DepartmentsPath).DistinguishedName
+        $OfficePath      = (Get-ADOrganizationalUnit -Filter 'name -eq $Office' -SearchBase $DepartmentPath ).DistinguishedName
     }
 
-    if ($UserPath) {
-        New-ADUser `
-            -Name                  $User.Name`
-            -GivenName             $User.GivenName `
-            -Surname               $User.Surname `
-            -Department            $User.Department `
-            -State                 $User.State `
-            -EmployeeID            $User.EmployeeID `
-            -DisplayName           $User.DisplayName `
-            -SamAccountName        $User.SamAccountName `
-            -AccountPassword       $(ConvertTo-SecureString $User.AccountPassword -AsPlainText -Force) `
-            -Enabled               $Enabled `
-            -ChangePasswordAtLogon $ChangePasswordAtLogon `
-            -Path                  $UserPath
+    if ($OfficePath) {
+        try {            
+            Add-ToLog -Message "Adding user [$($User.DisplayName)] to [$Department] in [$Office]." -logFilePath $ScriptLogFilePath -Display -status "info"
+            New-ADUser `
+                -Name                  $User.Name `
+                -GivenName             $User.GivenName `
+                -Surname               $User.Surname `
+                -Department            $User.Department `
+                -State                 $User.State `
+                -EmployeeID            $User.EmployeeID `
+                -DisplayName           $User.DisplayName `
+                -SamAccountName        $User.SamAccountName `
+                -AccountPassword       $(ConvertTo-SecureString $User.AccountPassword -AsPlainText -Force) `
+                -Enabled               $Enabled `
+                -ChangePasswordAtLogon $ChangePasswordAtLogon `
+                -Path                  $OfficePath `
+                -Company               $User.Company `
+                -AllowReversiblePasswordEncryption  $User.AllowReversiblePasswordEncryption `
+                -Initials              $User.Initials `
+                -Division              $User.Division `
+                -OfficePhone           $User.OfficePhone `
+                -MobilePhone           $User.MobilePhone `
+                -Title                 $User.Title `
+                -Email                 $User.Email 
+        }
+        Catch {
+            Add-ToLog -Message "Error while adding user [$($User.DisplayName)] to [$Department] in [$Office]! $_" -logFilePath $ScriptLogFilePath -Display -status "error"
+        }
     }
-
 }
+$Global:ParentLevel --
+Add-ToLog -Message "Added users in AD." -logFilePath $ScriptLogFilePath -Display -status "info"               
+
 ################################# Script end here ###################################
 . "$GlobalSettings\$SCRIPTSFolder\Finish.ps1"
