@@ -1,9 +1,9 @@
-﻿<#
-    .NOTE
-        .AUTHOR AlexK (1928311@tuta.io)
-        .DATE   11.06.2020
-        .VER    1
-        .LANG   En
+<#
+    .NOTES
+        AUTHOR AlexK (1928311@tuta.io)
+        DATE   11.06.2020
+        VER    1
+        LANG   En
         
     .LINK
         https://github.com/Alex-0293/ADStructureCreator.git
@@ -17,7 +17,7 @@
     .DESCRIPTION
         Create typical AD structure 
 
-    .PARAMETER
+    
 
     .EXAMPLE
         ADStructureCreator.ps1
@@ -43,7 +43,7 @@ if ($LastExitCode) { exit 1 }
 trap {
     if (get-module -FullyQualifiedName AlexkUtils) {
         Get-ErrorReporting $_
-        . "$GlobalSettingsPath\$SCRIPTSFolder\Finish.ps1" 
+        . "$($Global:gsGlobalSettingsPath)\$($Global:gsSCRIPTSFolder)\Finish.ps1" 
     }
     Else {
         Write-Host "[$($MyInvocation.MyCommand.path)] There is error before logging initialized. Error: $_" -ForegroundColor Red
@@ -59,12 +59,12 @@ Function Add-ADOrganizationalUnit {
     
     $Ou = Get-ADOrganizationalUnit -Filter 'name -eq $OuName' -SearchBase $ParentPath
     if ( $null-eq $Ou ) {
-        Add-ToLog -Message "Adding organization unit [$OuName] in [$ParentPath]." -logFilePath $ScriptLogFilePath -Display -status "info" 
+        Add-ToLog -Message "Adding organization unit [$OuName] in [$ParentPath]." -logFilePath $Global:gsScriptLogFilePath -Display -status "info" 
         New-ADOrganizationalUnit -name $OuName -Path $ParentPath
         $Ou = Get-ADOrganizationalUnit -Filter 'name -eq $OuName' -SearchBase $ParentPath       
     }
     Else {        
-        Add-ToLog -Message "Organization unit [$OuName] already exist in [$ParentPath]!" -logFilePath $ScriptLogFilePath -Display -status "error" 
+        Add-ToLog -Message "Organization unit [$OuName] already exist in [$ParentPath]!" -logFilePath $Global:gsScriptLogFilePath -Display -status "error" 
     }
     return $Ou.DistinguishedName
 }
@@ -151,10 +151,10 @@ Function New-User {
     $Global:EmployeeNumber ++
     Return $User
 }
-$Global:ParentLevel ++
+$Global:gsParentLevel ++
 if ($Global:GenerateUsers) {
     
-    Add-ToLog -Message "Generating users." -logFilePath $ScriptLogFilePath -Display -status "info" 
+    Add-ToLog -Message "Generating users." -logFilePath $Global:gsScriptLogFilePath -Display -status "info" 
     $Global:Surname1 = $Global:Surname
     [int] $Global:EmployeeNumber = 1
     $Global:users = @()
@@ -164,15 +164,15 @@ if ($Global:GenerateUsers) {
     }
     #$Global:users  | Select-Object EmployeeID, Sex, DisplayName, Department, SamAccountName, Company, Office, OfficePhone, MobilePhone  | Format-Table -AutoSize
     #$Global:Limits | Format-Table -AutoSize
-    Add-ToLog -Message "Users generated." -logFilePath $ScriptLogFilePath -Display -status "info"
+    Add-ToLog -Message "Users generated." -logFilePath $Global:gsScriptLogFilePath -Display -status "info"
 }
 
 $res = Import-Module ActiveDirectory -PassThru -Force
 if ($res) {  
     
     $ORGRootPath = (Get-ADDomain).DistinguishedName    
-    Add-ToLog -Message "Generating organization units in [$ORGRootPath]." -logFilePath $ScriptLogFilePath -Display -status "info"               
-    $Global:ParentLevel ++
+    Add-ToLog -Message "Generating organization units in [$ORGRootPath]." -logFilePath $Global:gsScriptLogFilePath -Display -status "info"               
+    $Global:gsParentLevel ++
     $OuCompany   = Add-ADOrganizationalUnit $CompanyName $ORGRootPath
     $OuGROUPS    = Add-ADOrganizationalUnit "GROUPS" $OuCompany
     $OuACL       = Add-ADOrganizationalUnit "ACL" $OuGROUPS
@@ -212,16 +212,16 @@ if ($res) {
                 $Ou    = Add-ADOrganizationalUnit "DISABLED"  $OuLoc
         }
     }
-    $Global:ParentLevel --
-    Add-ToLog -Message "Generated organization units in [$ORGRootPath]." -logFilePath $ScriptLogFilePath -Display -status "info"               
+    $Global:gsParentLevel --
+    Add-ToLog -Message "Generated organization units in [$ORGRootPath]." -logFilePath $Global:gsScriptLogFilePath -Display -status "info"               
 }
 
 if (-not $Global:GenerateUsers) {
     $Users = Import-Csv -Path $Global:UserCSVFilePath -Delimiter ";" 
 }
 
-Add-ToLog -Message "Adding users in AD." -logFilePath $ScriptLogFilePath -Display -status "info"               
-$Global:ParentLevel ++
+Add-ToLog -Message "Adding users in AD." -logFilePath $Global:gsScriptLogFilePath -Display -status "info"               
+$Global:gsParentLevel ++
 foreach ($User in $Users) {    
     if ($User.Enabled -eq "True"){
         $Enabled = $true
@@ -245,7 +245,7 @@ foreach ($User in $Users) {
 
     if ($OfficePath) {
         try {            
-            Add-ToLog -Message "Adding user [$($User.DisplayName)] to [$Department] in [$Office]." -logFilePath $ScriptLogFilePath -Display -status "info"
+            Add-ToLog -Message "Adding user [$($User.DisplayName)] to [$Department] in [$Office]." -logFilePath $Global:gsScriptLogFilePath -Display -status "info"
             New-ADUser `
                 -Name                  $User.Name `
                 -GivenName             $User.GivenName `
@@ -269,12 +269,12 @@ foreach ($User in $Users) {
                 -Email                 $User.Email 
         }
         Catch {
-            Add-ToLog -Message "Error while adding user [$($User.DisplayName)] to [$Department] in [$Office]! $_" -logFilePath $ScriptLogFilePath -Display -status "error"
+            Add-ToLog -Message "Error while adding user [$($User.DisplayName)] to [$Department] in [$Office]! $_" -logFilePath $Global:gsScriptLogFilePath -Display -status "error"
         }
     }
 }
-$Global:ParentLevel --
-Add-ToLog -Message "Added users in AD." -logFilePath $ScriptLogFilePath -Display -status "info"               
-$Global:ParentLevel --
+$Global:gsParentLevel --
+Add-ToLog -Message "Added users in AD." -logFilePath $Global:gsScriptLogFilePath -Display -status "info"               
+$Global:gsParentLevel --
 ################################# Script end here ###################################
-. "$GlobalSettingsPath\$SCRIPTSFolder\Finish.ps1"
+. "$($Global:gsGlobalSettingsPath)\$($Global:gsSCRIPTSFolder)\Finish.ps1"
