@@ -7,6 +7,7 @@
 [array]  $Global:DepartmentsWithLimits = @()         # Limit number of department employee in percents. Overall 100%.
 
 ######################### no replacement ########################
+[bool]  $Global:GenerateUsers = $true
 [bool]  $Global:UniqueNames = $True
 [int]   $Global:UsersCount  = 20
 [array] $Global:MaleNames   = "James", "John",     "Robert",   "Michael", "William",   "David",   "Richard", "Joseph",  "Thomas",    "Charles", "Christopher", "Daniel",   "Matthew", "Anthony", "Donald",    "Mark",   "Paul",   "Steven",   "Andrew",   "Kenneth"

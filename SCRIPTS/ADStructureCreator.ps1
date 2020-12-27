@@ -57,11 +57,14 @@ Function Add-ADOrganizationalUnit {
         [string] $ParentPath
     )
     
-    $Ou = Get-ADOrganizationalUnit -Filter 'name -eq $OuName' -SearchBase $ParentPath
-    if ( $null-eq $Ou ) {
+    $Filter = "name -eq `"$OuName`""
+    $Ou = Get-ADOrganizationalUnit -Filter $Filter -SearchBase $ParentPath
+    
+    if ( $null -eq $Ou ) {
         Add-ToLog -Message "Adding organization unit [$OuName] in [$ParentPath]." -logFilePath $Global:gsScriptLogFilePath -Display -status "info" 
         New-ADOrganizationalUnit -name $OuName -Path $ParentPath
-        $Ou = Get-ADOrganizationalUnit -Filter 'name -eq $OuName' -SearchBase $ParentPath       
+        
+        $Ou = Get-ADOrganizationalUnit -Filter $Filter -SearchBase $ParentPath       
     }
     Else {        
         Add-ToLog -Message "Organization unit [$OuName] already exist in [$ParentPath]!" -logFilePath $Global:gsScriptLogFilePath -Display -status "error" 
@@ -152,7 +155,7 @@ Function New-User {
     Return $User
 }
 $Global:gsParentLevel ++
-if ($Global:GenerateUsers) {
+if ( $Global:GenerateUsers ) {
     
     Add-ToLog -Message "Generating users." -logFilePath $Global:gsScriptLogFilePath -Display -status "info" 
     $Global:Surname1 = $Global:Surname
@@ -160,15 +163,18 @@ if ($Global:GenerateUsers) {
     $Global:users = @()
 
     for ($i = 1; $i -le $Global:UsersCount; $i++) {
-        $Global:users += New-User
+        $Global:users += New-User 
     }
     #$Global:users  | Select-Object EmployeeID, Sex, DisplayName, Department, SamAccountName, Company, Office, OfficePhone, MobilePhone  | Format-Table -AutoSize
     #$Global:Limits | Format-Table -AutoSize
     Add-ToLog -Message "Users generated." -logFilePath $Global:gsScriptLogFilePath -Display -status "info"
 }
+Else {
+    $Users = Import-Csv -Path $Global:UserCSVFilePath -Delimiter ";" 
+}
 
 $res = Import-Module ActiveDirectory -PassThru -Force
-if ($res) {  
+if ( $res ) {  
     
     $ORGRootPath = (Get-ADDomain).DistinguishedName    
     Add-ToLog -Message "Generating organization units in [$ORGRootPath]." -logFilePath $Global:gsScriptLogFilePath -Display -status "info"               
@@ -216,10 +222,6 @@ if ($res) {
     Add-ToLog -Message "Generated organization units in [$ORGRootPath]." -logFilePath $Global:gsScriptLogFilePath -Display -status "info"               
 }
 
-if (-not $Global:GenerateUsers) {
-    $Users = Import-Csv -Path $Global:UserCSVFilePath -Delimiter ";" 
-}
-
 Add-ToLog -Message "Adding users in AD." -logFilePath $Global:gsScriptLogFilePath -Display -status "info"               
 $Global:gsParentLevel ++
 foreach ($User in $Users) {    
@@ -237,10 +239,15 @@ foreach ($User in $Users) {
     }
     if ($User.Department) {
         $Department      = $User.Department
-        $Office          = $User.Division
+        $Office          = $User.Division        
+        
         $DepartmentsPath = (Get-ADOrganizationalUnit -Filter 'name -eq "DEPARTMENTS"' -SearchBase $ORGRootPath).DistinguishedName
-        $DepartmentPath  = (Get-ADOrganizationalUnit -Filter 'name -eq $Department' -SearchBase $DepartmentsPath).DistinguishedName
-        $OfficePath      = (Get-ADOrganizationalUnit -Filter 'name -eq $Office' -SearchBase $DepartmentPath ).DistinguishedName
+
+        $Filter          = "name -eq `"$Department`""
+        $DepartmentPath  = (Get-ADOrganizationalUnit -Filter $Filter -SearchBase $DepartmentsPath).DistinguishedName
+
+        $Filter          = "name -eq `"$Office`""
+        $OfficePath      = (Get-ADOrganizationalUnit -Filter $Filter -SearchBase $DepartmentPath ).DistinguishedName
     }
 
     if ($OfficePath) {
